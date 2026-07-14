@@ -12,6 +12,7 @@ class HabitModel extends HiveObject {
     this.reminderMinutes,
     this.durationMinutes,
     this.deletedAt,
+    this.deactivatedAt,
   });
 
   final String id;
@@ -32,6 +33,8 @@ class HabitModel extends HiveObject {
 
   final DateTime? deletedAt;
 
+  final DateTime? deactivatedAt;
+
   factory HabitModel.fromEntity(HabitEntity entity) {
     return HabitModel(
       id: entity.id,
@@ -43,6 +46,7 @@ class HabitModel extends HiveObject {
       isActive: entity.isActive,
       createdAt: entity.createdAt,
       deletedAt: entity.deletedAt,
+      deactivatedAt: entity.deactivatedAt,
     );
   }
 
@@ -57,6 +61,7 @@ class HabitModel extends HiveObject {
       isActive: isActive,
       createdAt: createdAt,
       deletedAt: deletedAt,
+      deactivatedAt: deactivatedAt,
     );
   }
 }
@@ -83,13 +88,14 @@ class HabitModelAdapter extends TypeAdapter<HabitModel> {
       isActive: fields[6] as bool,
       createdAt: fields[7] as DateTime,
       deletedAt: fields[8] as DateTime?,
+      deactivatedAt: fields[9] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitModel obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -107,6 +113,8 @@ class HabitModelAdapter extends TypeAdapter<HabitModel> {
       ..writeByte(7)
       ..write(obj.createdAt)
       ..writeByte(8)
-      ..write(obj.deletedAt);
+      ..write(obj.deletedAt)
+      ..writeByte(9)
+      ..write(obj.deactivatedAt);
   }
 }

@@ -184,11 +184,14 @@ class _DaySummaryCard extends StatelessWidget {
     final completedLogs = logs.where((l) => l.isCompleted).toList();
     final completedHabitIds = completedLogs.map((l) => l.habitId).toSet();
     final activeHabits = allHabits.where((h) {
-      if (!h.isActive) return false;
       if (!h.isScheduledFor(date)) return false;
       if (HabioDateUtils.startOfDay(h.createdAt).isAfter(date)) return false;
       if (h.deletedAt != null &&
           !HabioDateUtils.startOfDay(h.deletedAt!).isAfter(date)) {
+        return false;
+      }
+      if (h.deactivatedAt != null &&
+          !HabioDateUtils.startOfDay(h.deactivatedAt!).isAfter(date)) {
         return false;
       }
       return true;

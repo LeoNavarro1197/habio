@@ -9,6 +9,7 @@ class HabitEntity {
     this.reminderMinutes,
     this.durationMinutes,
     this.deletedAt,
+    this.deactivatedAt,
   });
 
   final String id;
@@ -20,6 +21,7 @@ class HabitEntity {
   final bool isActive;
   final DateTime createdAt;
   final DateTime? deletedAt;
+  final DateTime? deactivatedAt;
 
   HabitEntity copyWith({
     String? id,
@@ -31,6 +33,7 @@ class HabitEntity {
     bool? isActive,
     DateTime? createdAt,
     DateTime? deletedAt,
+    DateTime? deactivatedAt,
   }) {
     return HabitEntity(
       id: id ?? this.id,
@@ -42,6 +45,7 @@ class HabitEntity {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      deactivatedAt: deactivatedAt ?? this.deactivatedAt,
     );
   }
 

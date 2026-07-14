@@ -65,6 +65,10 @@ class HabitActions {
   }) async {
     final normalizedName = name.trim();
     final now = DateTime.now();
+    final deactivatedAt = existingHabit != null && existingHabit.isActive && !isActive
+        ? now
+        : existingHabit?.deactivatedAt;
+    final reactivated = existingHabit != null && !existingHabit.isActive && isActive;
     final habit = HabitEntity(
       id: existingHabit?.id ?? IdGenerator.next(),
       name: normalizedName,
@@ -74,6 +78,7 @@ class HabitActions {
       durationMinutes: durationMinutes,
       isActive: isActive,
       createdAt: existingHabit?.createdAt ?? now,
+      deactivatedAt: reactivated ? null : deactivatedAt,
     );
 
     await _habitRepository.save(habit);
