@@ -1,0 +1,51 @@
+class HabitEntity {
+  const HabitEntity({
+    required this.id,
+    required this.name,
+    required this.categoryId,
+    required this.selectedWeekdays,
+    required this.isActive,
+    required this.createdAt,
+    this.reminderMinutes,
+    this.durationMinutes,
+    this.deletedAt,
+  });
+
+  final String id;
+  final String name;
+  final String categoryId;
+  final List<int> selectedWeekdays;
+  final int? reminderMinutes;
+  final int? durationMinutes;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime? deletedAt;
+
+  HabitEntity copyWith({
+    String? id,
+    String? name,
+    String? categoryId,
+    List<int>? selectedWeekdays,
+    int? reminderMinutes,
+    int? durationMinutes,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? deletedAt,
+  }) {
+    return HabitEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      categoryId: categoryId ?? this.categoryId,
+      selectedWeekdays: selectedWeekdays ?? this.selectedWeekdays,
+      reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  bool isScheduledFor(DateTime date) {
+    return selectedWeekdays.contains(date.weekday);
+  }
+}
