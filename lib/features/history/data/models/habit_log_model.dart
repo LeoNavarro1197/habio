@@ -9,6 +9,7 @@ class HabitLogModel extends HiveObject {
     required this.date,
     required this.isCompleted,
     this.completedAt,
+    this.habitName,
   });
 
   final String id;
@@ -21,6 +22,8 @@ class HabitLogModel extends HiveObject {
 
   final DateTime? completedAt;
 
+  final String? habitName;
+
   factory HabitLogModel.fromEntity(HabitLogEntity entity) {
     return HabitLogModel(
       id: entity.id,
@@ -28,6 +31,7 @@ class HabitLogModel extends HiveObject {
       date: HabioDateUtils.startOfDay(entity.date),
       isCompleted: entity.isCompleted,
       completedAt: entity.completedAt,
+      habitName: entity.habitName,
     );
   }
 
@@ -38,6 +42,7 @@ class HabitLogModel extends HiveObject {
       date: date,
       isCompleted: isCompleted,
       completedAt: completedAt,
+      habitName: habitName,
     );
   }
 }
@@ -60,13 +65,14 @@ class HabitLogModelAdapter extends TypeAdapter<HabitLogModel> {
       date: fields[2] as DateTime,
       isCompleted: fields[3] as bool,
       completedAt: fields[4] as DateTime?,
+      habitName: fields[5] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitLogModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -76,6 +82,8 @@ class HabitLogModelAdapter extends TypeAdapter<HabitLogModel> {
       ..writeByte(3)
       ..write(obj.isCompleted)
       ..writeByte(4)
-      ..write(obj.completedAt);
+      ..write(obj.completedAt)
+      ..writeByte(5)
+      ..write(obj.habitName);
   }
 }

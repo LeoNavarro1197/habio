@@ -304,6 +304,7 @@ class _DaySummaryCard extends StatelessWidget {
             ...completedLogs.map((log) {
               final habit = habitById[log.habitId];
               if (habit == null) {
+                final name = log.habitName ?? 'Hábito eliminado';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
@@ -315,17 +316,19 @@ class _DaySummaryCard extends StatelessWidget {
                           color: AppColors.textTertiary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(
-                          Icons.help_outline_rounded,
+                        child: Icon(
+                          log.habitName != null
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.help_outline_rounded,
                           size: 16,
                           color: AppColors.textTertiary,
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Hábito eliminado',
-                          style: TextStyle(
+                          name,
+                          style: const TextStyle(
                             color: AppColors.textTertiary,
                             fontSize: 14,
                             decoration: TextDecoration.lineThrough,

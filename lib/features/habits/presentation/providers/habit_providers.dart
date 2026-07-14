@@ -119,6 +119,7 @@ class HabitActions {
       date: normalizedDate,
       isCompleted: true,
       completedAt: DateTime.now(),
+      habitName: habit.name,
     );
 
     await _habitLogRepository.save(log);

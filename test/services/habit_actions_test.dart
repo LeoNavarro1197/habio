@@ -209,6 +209,7 @@ void main() {
         expect(logs.length, 1);
         expect(logs[0].habitId, 'h1');
         expect(logs[0].isCompleted, isTrue);
+        expect(logs[0].habitName, 'Test');
       });
 
       test('unchecking deletes the log', () async {
