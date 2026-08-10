@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../core/widgets/app_components.dart';
 import '../../../../core/widgets/banner_ad_widget.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../categories/domain/entities/category_entity.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../habits/domain/entities/habit_entity.dart';
@@ -20,6 +21,7 @@ class HistoryPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final logsAsync = ref.watch(lastMonthLogsProvider);
     final timerLogsAsync = ref.watch(lastMonthTimerLogsProvider);
     final habitsAsync = ref.watch(allHabitsProvider);
@@ -44,27 +46,27 @@ class HistoryPage extends ConsumerWidget {
                   showAds: showAds,
                 ),
                 error: (error, _) => _StateCard(
-                  title: 'No pudimos cargar el historial',
+                  title: l10n.historyLoadError,
                   message: '$error',
                 ),
                 loading: () => const _LoadingState(),
               ),
               error: (error, _) => _StateCard(
-                title: 'No pudimos cargar el historial del timer',
+                title: l10n.historyLoadErrorTimer,
                 message: '$error',
               ),
               loading: () => const _LoadingState(),
             );
           },
           error: (error, _) => _StateCard(
-            title: 'No pudimos cargar los hábitos',
+            title: l10n.historyLoadErrorHabits,
             message: '$error',
           ),
           loading: () => const _LoadingState(),
         );
       },
       error: (error, _) => _StateCard(
-        title: 'No pudimos cargar las categorías',
+        title: l10n.historyLoadErrorCategories,
         message: '$error',
       ),
       loading: () => const _LoadingState(),
@@ -89,6 +91,7 @@ class _HistoryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final habitById = {for (final h in allHabits) h.id: h};
 
@@ -125,18 +128,18 @@ class _HistoryContent extends StatelessWidget {
           child: ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
-        Text('Historial', style: theme.textTheme.headlineMedium),
+        Text(l10n.historyTitle, style: theme.textTheme.headlineMedium),
         const SizedBox(height: 4),
-        const Text(
-          'Últimos 30 días',
+        Text(
+          l10n.historyLast30Days,
           style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
         ),
         if (recentDates.isEmpty) ...[
           const SizedBox(height: 24),
-          const EmptyStateCard(
+          EmptyStateCard(
             icon: Icons.query_stats_rounded,
-            title: 'Aún no hay historial',
-            subtitle: 'Completa hábitos o usa el temporizador para ver tu historial.',
+            title: l10n.historyEmptyTitle,
+            subtitle: l10n.historyEmptySubtitle,
           ),
         ] else ...[
           const SizedBox(height: 24),
@@ -181,7 +184,9 @@ class _DaySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final completedLogs = logs.where((l) => l.isCompleted).toList();
+    final logsByHabitId = {for (final l in logs) l.habitId: l};
     final completedHabitIds = completedLogs.map((l) => l.habitId).toSet();
     final activeHabits = allHabits.where((h) {
       if (!h.isScheduledFor(date)) return false;
@@ -208,17 +213,8 @@ class _DaySummaryCard extends StatelessWidget {
     final progress = totalCount == 0 ? 0.0 : completedCount / totalCount;
     final percent = (progress * 100).round();
 
-    const weekdays = [
-      'Lunes', 'Martes', 'Miércoles', 'Jueves',
-      'Viernes', 'Sábado', 'Domingo',
-    ];
-    const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-    ];
-
-    final dayName = weekdays[date.weekday - 1];
-    final monthName = months[date.month - 1];
+    final dayName = _weekdayName(l10n, date.weekday);
+    final monthName = _monthName(l10n, date.month);
     final isToday = HabioDateUtils.isSameDay(date, DateTime.now());
 
     return GlassCard(
@@ -233,7 +229,7 @@ class _DaySummaryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isToday ? 'Hoy' : dayName,
+                      isToday ? l10n.today : dayName,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 17,
@@ -242,7 +238,7 @@ class _DaySummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${date.day} de $monthName',
+                      l10n.dateFormat('${date.day}', monthName, dayName, '${date.year}'),
                       style: const TextStyle(
                         color: AppColors.textTertiary,
                         fontSize: 13,
@@ -283,7 +279,7 @@ class _DaySummaryCard extends StatelessWidget {
                 value: completedCount,
                 duration: const Duration(milliseconds: 400),
                 builder: (v) => _chip(
-                  '$v completados',
+                  '$v ${l10n.todayCompleted}',
                   AppColors.success.withValues(alpha: 0.12),
                   AppColors.success,
                 ),
@@ -293,7 +289,7 @@ class _DaySummaryCard extends StatelessWidget {
                 value: totalCount - completedCount,
                 duration: const Duration(milliseconds: 400),
                 builder: (v) => _chip(
-                  '$v pendientes',
+                  '$v ${l10n.todayPending}',
                   AppColors.textTertiary.withValues(alpha: 0.12),
                   AppColors.textTertiary,
                 ),
@@ -307,7 +303,7 @@ class _DaySummaryCard extends StatelessWidget {
             ...completedLogs.map((log) {
               final habit = habitById[log.habitId];
               if (habit == null) {
-                final name = log.habitName ?? 'Hábito eliminado';
+                final name = log.habitName ?? l10n.deletedHabit;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
@@ -340,7 +336,7 @@ class _DaySummaryCard extends StatelessWidget {
                       ),
                       if (log.completedAt != null)
                         Text(
-                          _formatTime(log.completedAt!),
+                          '${_formatTime(log.completedAt!)}${log.durationMinutes != null ? " · ${log.durationMinutes} ${l10n.minUnit}" : ""}',
                           style: const TextStyle(
                             color: AppColors.textTertiary,
                             fontSize: 12,
@@ -386,7 +382,7 @@ class _DaySummaryCard extends StatelessWidget {
                     ),
                     if (log.completedAt != null)
                       Text(
-                        _formatTime(log.completedAt!),
+                        '${_formatTime(log.completedAt!)}${log.durationMinutes != null ? " · ${log.durationMinutes} min" : ""}',
                         style: const TextStyle(
                           color: AppColors.textTertiary,
                           fontSize: 12,
@@ -402,7 +398,7 @@ class _DaySummaryCard extends StatelessWidget {
             Container(height: 1, color: AppColors.divider),
             const SizedBox(height: 14),
             Text(
-              'Pendientes',
+              l10n.historyPendingSection,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 12,
@@ -413,6 +409,9 @@ class _DaySummaryCard extends StatelessWidget {
             const SizedBox(height: 10),
             ...uncompletedHabits.map((habit) {
               final category = categoryById[habit.categoryId];
+              final log = logsByHabitId[habit.id];
+              final isPartial =
+                  log != null && log.completedCount > 0;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -450,13 +449,18 @@ class _DaySummaryCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.12),
+                        color: (isPartial ? AppColors.primary : AppColors.warning)
+                            .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
-                        'Pendiente',
+                      child: Text(
+                        isPartial
+                            ? '${log.completedCount}/${habit.timesPerDay}'
+                            : l10n.historyPendingBadge,
                         style: TextStyle(
-                          color: AppColors.warning,
+                          color: isPartial
+                              ? AppColors.primary
+                              : AppColors.warning,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -472,7 +476,7 @@ class _DaySummaryCard extends StatelessWidget {
             Container(height: 1, color: AppColors.divider),
             const SizedBox(height: 14),
             Text(
-              'Sesiones de temporizador',
+              l10n.historyTimerSection,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 12,
@@ -509,7 +513,7 @@ class _DaySummaryCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${log.durationMinutes} min',
+                    '${log.durationMinutes} ${l10n.minUnit}',
                     style: const TextStyle(
                       color: AppColors.textTertiary,
                       fontSize: 12,
@@ -523,7 +527,7 @@ class _DaySummaryCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Sin hábitos programados para este día',
+                l10n.historyNoHabits,
                 style: const TextStyle(
                   color: AppColors.textTertiary,
                   fontSize: 13,
@@ -557,6 +561,35 @@ class _DaySummaryCard extends StatelessWidget {
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+
+  String _weekdayName(AppLocalizations l10n, int weekday) {
+    switch (weekday) {
+      case DateTime.monday:    return l10n.weekdayMonday;
+      case DateTime.tuesday:   return l10n.weekdayTuesday;
+      case DateTime.wednesday: return l10n.weekdayWednesday;
+      case DateTime.thursday:  return l10n.weekdayThursday;
+      case DateTime.friday:    return l10n.weekdayFriday;
+      case DateTime.saturday:  return l10n.weekdaySaturday;
+      default:                 return l10n.weekdaySunday;
+    }
+  }
+
+  String _monthName(AppLocalizations l10n, int month) {
+    switch (month) {
+      case 1:  return l10n.monthJanuary;
+      case 2:  return l10n.monthFebruary;
+      case 3:  return l10n.monthMarch;
+      case 4:  return l10n.monthApril;
+      case 5:  return l10n.monthMay;
+      case 6:  return l10n.monthJune;
+      case 7:  return l10n.monthJuly;
+      case 8:  return l10n.monthAugust;
+      case 9:  return l10n.monthSeptember;
+      case 10: return l10n.monthOctober;
+      case 11: return l10n.monthNovember;
+      default: return l10n.monthDecember;
+    }
   }
 }
 

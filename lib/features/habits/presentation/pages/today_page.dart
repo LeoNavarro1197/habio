@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/sound_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/date_time_extensions.dart';
 import '../../../../core/widgets/app_components.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../../core/widgets/banner_ad_widget.dart';
 import '../../../categories/domain/entities/category_entity.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
@@ -20,6 +22,7 @@ class TodayPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final habitsAsync = ref.watch(todayHabitsProvider);
     final logsAsync = ref.watch(todayHabitLogsProvider);
@@ -37,14 +40,14 @@ class TodayPage extends ConsumerWidget {
           data: (logs) {
             return habitsAsync.when(
               data: (habits) {
-                final completedByHabitId = {
-                  for (final log in logs.where((item) => item.isCompleted))
-                    log.habitId: log,
+                final logsByHabitId = {
+                  for (final log in logs) log.habitId: log,
                 };
                 final activeHabits =
                     habits.where((h) => h.isActive).toList();
                 final completedCount = activeHabits
-                    .where((habit) => completedByHabitId.containsKey(habit.id))
+                    .where((habit) =>
+                        logsByHabitId[habit.id]?.isFullyCompleted ?? false)
                     .length;
                 final progress = activeHabits.isEmpty
                     ? 0.0
@@ -53,7 +56,7 @@ class TodayPage extends ConsumerWidget {
 
                 final body = <Widget>[
                   Text(
-                    now.greeting,
+                    now.localizedGreeting(l10n),
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 28,
@@ -63,7 +66,7 @@ class TodayPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    now.spanishLongDate,
+                    now.localizedLongDate(l10n),
                     style: const TextStyle(
                       color: AppColors.textTertiary,
                       fontSize: 14,
@@ -76,8 +79,8 @@ class TodayPage extends ConsumerWidget {
                     totalCount: totalCount,
                   ),
                   const SizedBox(height: 28),
-                  const Text(
-                    'Hábitos de hoy',
+                  Text(
+                    l10n.todayHabitsTitle,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 20,
@@ -105,22 +108,25 @@ class TodayPage extends ConsumerWidget {
                               padding: const EdgeInsets.only(bottom: 10),
                               child: _HabitCard(
                                 isActive: habit.isActive,
-                                daysLabel: _formatDaysLabel(habit.selectedWeekdays),
+                                daysLabel: _formatDaysLabel(l10n, habit.selectedWeekdays),
                                 habitName: habit.name,
                                 reminderLabel:
-                                    _formatReminderLabel(habit.reminderMinutes),
+                                    _formatReminderLabel(l10n, habit.reminderMinutes),
                                 durationLabel:
-                                    '${habit.durationMinutes ?? 25} min',
+                                    l10n.timerDurationMinutes('${habit.durationMinutes ?? 25}'),
                                 category: categoryById[habit.categoryId],
                                 isCompleted:
-                                    completedByHabitId.containsKey(habit.id),
-                                onChanged: (value) async {
+                                    logsByHabitId[habit.id]?.isFullyCompleted ?? false,
+                                completedCount:
+                                    logsByHabitId[habit.id]?.completedCount ?? 0,
+                                timesPerDay: habit.timesPerDay,
+                                onCompletedCountChanged: (count) async {
                                   await ref
                                       .read(habitActionsProvider)
-                                      .setHabitCompletion(
+                                      .setHabitCompletionCount(
                                         habit: habit,
                                         date: now,
-                                        isCompleted: value ?? false,
+                                        completedCount: count,
                                       );
                                 },
                                 onEdit: () {
@@ -139,7 +145,7 @@ class TodayPage extends ConsumerWidget {
                                         .showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                            'Se eliminó "${habit.name}".'),
+                                            l10n.todayDeletedSnackbar(habit.name)),
                                       ),
                                     );
                                   }
@@ -154,21 +160,21 @@ class TodayPage extends ConsumerWidget {
                 );
               },
               error: (error, _) => _StateCard(
-                title: 'No pudimos cargar tus hábitos',
+                title: l10n.todayLoadErrorHabits,
                 message: '$error',
               ),
               loading: () => const _LoadingState(),
             );
           },
           error: (error, _) => _StateCard(
-            title: 'No pudimos cargar el progreso',
+            title: l10n.todayLoadErrorProgress,
             message: '$error',
           ),
           loading: () => const _LoadingState(),
         );
       },
       error: (error, _) => _StateCard(
-        title: 'No pudimos cargar las categorías',
+        title: l10n.todayLoadErrorCategories,
         message: '$error',
       ),
       loading: () => const _LoadingState(),
@@ -177,19 +183,20 @@ class TodayPage extends ConsumerWidget {
 
   static Future<bool> _confirmDelete(
       BuildContext context, String habitName) async {
+    final l10n = AppLocalizations.of(context)!;
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar hábito'),
-        content: Text('¿Quieres eliminar "$habitName"?'),
+        title: Text(l10n.todayDeleteTitle),
+        content: Text(l10n.todayDeleteMessage(habitName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -197,17 +204,20 @@ class TodayPage extends ConsumerWidget {
     return result ?? false;
   }
 
-  static String _formatReminderLabel(int? reminderMinutes) {
-    if (reminderMinutes == null) return 'Sin hora';
+  String _formatReminderLabel(AppLocalizations l10n, int? reminderMinutes) {
+    if (reminderMinutes == null) return l10n.todayNoReminder;
     final hour = (reminderMinutes ~/ 60).toString().padLeft(2, '0');
     final minute = (reminderMinutes % 60).toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 
-  static String _formatDaysLabel(List<int> weekdays) {
-    const names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  String _formatDaysLabel(AppLocalizations l10n, List<int> weekdays) {
+    final names = [
+      l10n.weekdayMon, l10n.weekdayTue, l10n.weekdayWed,
+      l10n.weekdayThu, l10n.weekdayFri, l10n.weekdaySat, l10n.weekdaySun,
+    ];
     final sorted = List<int>.from(weekdays)..sort();
-    if (sorted.length == 7) return 'Todos los días';
+    if (sorted.length == 7) return l10n.todayAllDays;
     return sorted.map((d) => names[d - 1]).join(', ');
   }
 }
@@ -225,6 +235,7 @@ class _ProgressSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final percent = (progress * 100).round();
     final pendingCount = (totalCount - completedCount).clamp(0, totalCount);
 
@@ -255,9 +266,9 @@ class _ProgressSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Progreso diario',
-                  style: TextStyle(
+                Text(
+                  l10n.todayDailyProgress,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -269,9 +280,9 @@ class _ProgressSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         totalCount == 0
-            ? const Text(
-                'Crea tu primer hábito para empezar.',
-                style: TextStyle(
+            ? Text(
+                l10n.todayCreateFirstHabit,
+                style: const TextStyle(
                   color: AppColors.textTertiary,
                   fontSize: 14,
                 ),
@@ -280,7 +291,7 @@ class _ProgressSection extends StatelessWidget {
                 value: completedCount,
                 duration: const Duration(milliseconds: 500),
                 builder: (v) => Text(
-                  '$v de $totalCount completados',
+                  '$v ${l10n.todayCompleted}',
                   style: const TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 14,
@@ -296,7 +307,7 @@ class _ProgressSection extends StatelessWidget {
               duration: const Duration(milliseconds: 500),
               builder: (v) => _MetricBadge(
                 icon: Icons.check_circle_rounded,
-                label: '$v completados',
+                label: '$v ${l10n.todayCompleted}',
                 color: AppColors.success,
               ),
             ),
@@ -307,7 +318,7 @@ class _ProgressSection extends StatelessWidget {
                 duration: const Duration(milliseconds: 500),
                 builder: (v) => _MetricBadge(
                   icon: Icons.circle_outlined,
-                  label: '$v pendientes',
+                  label: '$v ${l10n.todayPending}',
                   color: AppColors.textTertiary,
                 ),
               ),
@@ -361,10 +372,11 @@ class _EmptyHabitsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return EmptyStateCard(
       icon: Icons.check_circle_outline_rounded,
-      title: 'Todavía no hay hábitos',
-      subtitle: 'Usa el botón + para crear tu primer hábito.',
+      title: l10n.todayNoHabitsYet,
+      subtitle: l10n.todayEmptySubtitle,
     );
   }
 }
@@ -378,7 +390,9 @@ class _HabitCard extends StatefulWidget {
     required this.durationLabel,
     required this.category,
     required this.isCompleted,
-    required this.onChanged,
+    required this.completedCount,
+    required this.timesPerDay,
+    required this.onCompletedCountChanged,
     required this.onEdit,
     required this.onDelete,
   });
@@ -390,7 +404,9 @@ class _HabitCard extends StatefulWidget {
   final String durationLabel;
   final CategoryEntity? category;
   final bool isCompleted;
-  final ValueChanged<bool?> onChanged;
+  final int completedCount;
+  final int timesPerDay;
+  final ValueChanged<int> onCompletedCountChanged;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -402,12 +418,14 @@ class _HabitCardState extends State<_HabitCard>
     with TickerProviderStateMixin {
   late final AnimationController _checkController;
   late final AnimationController _springController;
-  bool _isCompleted = false;
+  late bool _isCompleted;
+  late int _completedCount;
 
   @override
   void initState() {
     super.initState();
     _isCompleted = widget.isCompleted;
+    _completedCount = widget.completedCount;
     _checkController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -422,6 +440,7 @@ class _HabitCardState extends State<_HabitCard>
   @override
   void didUpdateWidget(_HabitCard old) {
     super.didUpdateWidget(old);
+    _completedCount = widget.completedCount;
     if (widget.isCompleted != old.isCompleted) {
       _isCompleted = widget.isCompleted;
       if (_isCompleted) {
@@ -445,14 +464,93 @@ class _HabitCardState extends State<_HabitCard>
     super.dispose();
   }
 
+  void _applyCount(int newCount) {
+    final wasFullyCompleted = _isCompleted;
+    setState(() {
+      _completedCount = newCount;
+      _isCompleted = newCount >= widget.timesPerDay;
+    });
+    final sound = ProviderScope.containerOf(context, listen: false)
+        .read(soundServiceProvider);
+    if (_isCompleted && !wasFullyCompleted) {
+      sound.playComplete();
+    } else {
+      sound.playClick();
+    }
+    widget.onCompletedCountChanged(_completedCount);
+  }
+
   void _toggle() {
-    final newValue = !_isCompleted;
-    setState(() => _isCompleted = newValue);
-    widget.onChanged(newValue);
+    _applyCount(_isCompleted ? 0 : widget.timesPerDay);
+  }
+
+  void _toggleSubCheck(int index) {
+    final newCount = index < _completedCount ? index : index + 1;
+    _applyCount(newCount);
+  }
+
+  Widget _buildSubChecks(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 42, top: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            '$_completedCount/${widget.timesPerDay}',
+            style: const TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: List.generate(
+                widget.timesPerDay,
+                _subCheck,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _subCheck(int index) {
+    final checked = index < _completedCount;
+    return GestureDetector(
+      onTap: () => _toggleSubCheck(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 20,
+        height: 20,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: checked
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : Colors.transparent,
+          border: Border.all(
+            color: checked ? Colors.transparent : AppColors.textTertiary,
+            width: 2,
+          ),
+        ),
+        child: checked
+            ? Icon(
+                Icons.check_rounded,
+                size: 12,
+                color: Colors.white.withValues(alpha: 0.5),
+              )
+            : null,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AnimatedPressable(
       onTap: _toggle,
       onLongPress: () => _showMenu(context),
@@ -480,7 +578,9 @@ class _HabitCardState extends State<_HabitCard>
               ),
               child: Opacity(
                 opacity: _isCompleted ? 0.3 : widget.isActive ? 1 : 0.55,
-                child: Row(
+                child: Column(
+              children: [
+                Row(
               children: [
             GestureDetector(
               onTap: _toggle,
@@ -539,51 +639,43 @@ class _HabitCardState extends State<_HabitCard>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                widget.habitName,
-                                style: TextStyle(
-                                  color: _isCompleted
-                                      ? AppColors.textTertiary
-                                      : AppColors.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: _isCompleted
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                        Text(
+                          widget.habitName,
+                          style: TextStyle(
+                            color: _isCompleted
+                                ? AppColors.textTertiary
+                                : AppColors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            decoration: _isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.textTertiary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            widget.isActive
+                                ? widget.daysLabel
+                                : '${l10n.inactive} · ${widget.daysLabel}',
+                            style: TextStyle(
+                              color: widget.isActive
+                                  ? AppColors.textTertiary
+                                  : AppColors.warning,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppColors.textTertiary.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                widget.isActive
-                                    ? widget.daysLabel
-                                    : 'Inactivo · ${widget.daysLabel}',
-                                style: TextStyle(
-                                  color: widget.isActive
-                                      ? AppColors.textTertiary
-                                      : AppColors.warning,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          widget.category?.name ?? 'Sin categoría',
+                          widget.category?.name ?? l10n.noCategory,
                     style: const TextStyle(
                       color: AppColors.textTertiary,
                       fontSize: 12,
@@ -614,8 +706,11 @@ class _HabitCardState extends State<_HabitCard>
             ),
               ],
               ),
+              if (widget.timesPerDay > 1) _buildSubChecks(context),
+              ],
               ),
-            ),
+              ),
+              ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
@@ -664,6 +759,7 @@ class _HabitCardState extends State<_HabitCard>
   }
 
   void _showMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -673,7 +769,7 @@ class _HabitCardState extends State<_HabitCard>
             ListTile(
               leading: const Icon(Icons.edit_outlined,
                   color: AppColors.textPrimary),
-              title: const Text('Editar'),
+              title: Text(l10n.edit),
               onTap: () {
                 Navigator.of(ctx).pop();
                 widget.onEdit();
@@ -682,8 +778,8 @@ class _HabitCardState extends State<_HabitCard>
             ListTile(
               leading:
                   const Icon(Icons.delete_outline, color: AppColors.error),
-              title: const Text('Eliminar',
-                  style: TextStyle(color: AppColors.error)),
+              title: Text(l10n.delete,
+                  style: const TextStyle(color: AppColors.error)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 widget.onDelete();

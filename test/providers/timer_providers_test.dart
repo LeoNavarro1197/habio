@@ -63,7 +63,7 @@ void main() {
       expect(controller.state.status, TimerStatus.idle);
       expect(controller.state.durationMinutes, 25);
       expect(controller.state.remainingSeconds, 1500);
-      expect(controller.state.activityName, 'Sesión de enfoque');
+      expect(controller.state.activityName, '');
     });
 
     test('setActivityName updates name', () {

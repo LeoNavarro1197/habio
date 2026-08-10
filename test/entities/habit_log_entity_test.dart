@@ -24,5 +24,30 @@ void main() {
       expect(copy.isCompleted, isFalse);
       expect(copy.habitId, 'habit_1');
     });
+
+    test('completedCount and timesPerDay default to 0 and 1', () {
+      expect(log.completedCount, 0);
+      expect(log.timesPerDay, 1);
+    });
+
+    test('copyWith overrides completedCount and timesPerDay', () {
+      final copy = log.copyWith(completedCount: 5, timesPerDay: 8);
+      expect(copy.completedCount, 5);
+      expect(copy.timesPerDay, 8);
+    });
+
+    test('isFullyCompleted is true when count reaches timesPerDay', () {
+      HabitLogEntity buildLog({int count = 0, int times = 1}) => HabitLogEntity(
+            id: 'log',
+            habitId: 'habit',
+            date: today,
+            isCompleted: false,
+            completedCount: count,
+            timesPerDay: times,
+          );
+      expect(buildLog(count: 8, times: 8).isFullyCompleted, isTrue);
+      expect(buildLog(count: 7, times: 8).isFullyCompleted, isFalse);
+      expect(buildLog(count: 0, times: 1).isFullyCompleted, isFalse);
+    });
   });
 }

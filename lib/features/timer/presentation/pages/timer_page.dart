@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/sound_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/duration_format_utils.dart';
 import '../../../../core/widgets/banner_ad_widget.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../domain/entities/timer_session_entity.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/timer_providers.dart';
@@ -28,13 +30,33 @@ class _TimerPageState extends ConsumerState<TimerPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final l10n = AppLocalizations.of(context);
+    if (l10n != null && _activityNameController.text.isEmpty) {
+      _activityNameController.text = l10n.timerDefaultActivity;
+    }
+  }
+
+  @override
   void dispose() {
     _activityNameController.dispose();
     super.dispose();
   }
 
+  Future<void> _showCustomDurationDialog(TimerController controller) async {
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => const _DurationDialog(),
+    );
+    if (result != null && result > 0) {
+      controller.setCustomDuration(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final timerState = ref.watch(timerControllerProvider);
     final timerController = ref.read(timerControllerProvider.notifier);
@@ -46,8 +68,8 @@ class _TimerPageState extends ConsumerState<TimerPage> {
           next.status == TimerStatus.completed) {
         final activityName = next.activityName.trim();
         final message = activityName.isEmpty
-            ? 'Sesión completada. Buen trabajo.'
-            : 'Sesión completada: $activityName';
+            ? l10n.timerCompletedSnackbar
+            : l10n.timerCompletedWithActivitySnackbar(activityName);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -66,26 +88,26 @@ class _TimerPageState extends ConsumerState<TimerPage> {
           child: ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
-        Text('Temporizador', style: theme.textTheme.headlineMedium),
+        Text(l10n.timerTitle, style: theme.textTheme.headlineMedium),
         const SizedBox(height: 4),
-        const Text(
-          'Concentra tu tiempo en una actividad.',
-          style: TextStyle(color: AppColors.textTertiary, fontSize: 14),
+        Text(
+          l10n.timerSubtitle,
+          style: const TextStyle(color: AppColors.textTertiary, fontSize: 14),
         ),
         const SizedBox(height: 24),
         TextField(
           controller: _activityNameController,
           enabled: !timerState.isRunning,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Actividad',
-            hintText: 'Estudio, trabajo, ejercicio...',
+          decoration: InputDecoration(
+            labelText: l10n.timerActivityLabel,
+            hintText: l10n.timerActivityHint,
           ),
           onChanged: timerController.setActivityName,
         ),
         const SizedBox(height: 20),
-        const Text(
-          'DURACIÓN',
+        Text(
+          l10n.timerDurationHeader,
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
@@ -97,16 +119,26 @@ class _TimerPageState extends ConsumerState<TimerPage> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: TimerSessionState.durationPresets.map((minutes) {
-            final isSelected = timerState.durationMinutes == minutes;
-            return ChoiceChip(
-              label: Text('$minutes min'),
-              selected: isSelected,
+          children: [
+            ...TimerSessionState.durationPresets.map((minutes) {
+              final isSelected = timerState.durationMinutes == minutes;
+              return ChoiceChip(
+                label: Text('$minutes ${l10n.minUnit}'),
+                selected: isSelected,
+                onSelected: timerState.canEditDuration
+                    ? (_) => timerController.setDurationMinutes(minutes)
+                    : null,
+              );
+            }),
+            ChoiceChip(
+              label: Text(l10n.custom),
+              selected: !TimerSessionState.durationPresets
+                  .contains(timerState.durationMinutes),
               onSelected: timerState.canEditDuration
-                  ? (_) => timerController.setDurationMinutes(minutes)
+                  ? (_) => _showCustomDurationDialog(timerController)
                   : null,
-            );
-          }).toList(),
+            ),
+          ],
         ),
         const SizedBox(height: 32),
         Center(
@@ -151,10 +183,14 @@ class _TimerPageState extends ConsumerState<TimerPage> {
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed:
-                    timerState.isRunning ? null : timerController.start,
+                onPressed: timerState.isRunning
+                    ? null
+                    : () {
+                        ref.read(soundServiceProvider).playClick();
+                        timerController.start();
+                      },
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                label: const Text('Iniciar'),
+                label: Text(l10n.start),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -166,10 +202,14 @@ class _TimerPageState extends ConsumerState<TimerPage> {
             const SizedBox(width: 10),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed:
-                    timerState.isRunning ? timerController.pause : null,
+                onPressed: timerState.isRunning
+                    ? () {
+                        ref.read(soundServiceProvider).playClick();
+                        timerController.pause();
+                      }
+                    : null,
                 icon: const Icon(Icons.pause_rounded, size: 20),
-                label: const Text('Pausar'),
+                label: Text(l10n.timerPause),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -187,9 +227,12 @@ class _TimerPageState extends ConsumerState<TimerPage> {
           child: OutlinedButton.icon(
             onPressed: timerState.status == TimerStatus.idle
                 ? null
-                : timerController.reset,
+                : () {
+                    ref.read(soundServiceProvider).playClick();
+                    timerController.reset();
+                  },
             icon: const Icon(Icons.restart_alt_rounded, size: 20),
-            label: const Text('Reiniciar'),
+            label: Text(l10n.timerReset),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -207,11 +250,12 @@ class _TimerPageState extends ConsumerState<TimerPage> {
   }
 
   String _statusLabel(TimerStatus status) {
+    final l10n = AppLocalizations.of(context)!;
     return switch (status) {
-      TimerStatus.idle => 'Listo para empezar',
-      TimerStatus.running => 'En curso',
-      TimerStatus.paused => 'Pausado',
-      TimerStatus.completed => 'Completado',
+      TimerStatus.idle => l10n.timerStatusIdle,
+      TimerStatus.running => l10n.timerStatusRunning,
+      TimerStatus.paused => l10n.timerStatusPaused,
+      TimerStatus.completed => l10n.timerStatusCompleted,
     };
   }
 }
@@ -241,6 +285,93 @@ class _TimerRing extends StatelessWidget {
         child: Center(child: child),
       ),
       child: child,
+    );
+  }
+}
+
+class _DurationDialog extends StatefulWidget {
+  const _DurationDialog();
+
+  @override
+  State<_DurationDialog> createState() => _DurationDialogState();
+}
+
+class _DurationDialogState extends State<_DurationDialog> {
+  late final TextEditingController _minutesCtrl;
+  late final TextEditingController _secondsCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _minutesCtrl = TextEditingController();
+    _secondsCtrl = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _minutesCtrl.dispose();
+    _secondsCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final l10n = AppLocalizations.of(context)!;
+    final minutes = int.tryParse(_minutesCtrl.text) ?? 0;
+    final seconds = int.tryParse(_secondsCtrl.text) ?? 0;
+    final total = minutes * 60 + seconds;
+    if (total < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.timerValidateTime)),
+      );
+      return;
+    }
+    Navigator.of(context).pop(total);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text(l10n.timerCustomDialogTitle),
+      content: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _minutesCtrl,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: l10n.timerMinutesLabel,
+                hintText: l10n.timerMinutesHint,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _secondsCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: l10n.timerSecondsLabel,
+                hintText: l10n.timerSecondsHint,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.accept),
+        ),
+      ],
     );
   }
 }

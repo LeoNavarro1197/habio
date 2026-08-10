@@ -7,7 +7,9 @@ class HabitEntity {
     required this.isActive,
     required this.createdAt,
     this.reminderMinutes,
+    this.reminderIntervalMinutes,
     this.durationMinutes,
+    this.timesPerDay = 1,
     this.deletedAt,
     this.deactivatedAt,
   });
@@ -17,7 +19,9 @@ class HabitEntity {
   final String categoryId;
   final List<int> selectedWeekdays;
   final int? reminderMinutes;
+  final int? reminderIntervalMinutes;
   final int? durationMinutes;
+  final int timesPerDay;
   final bool isActive;
   final DateTime createdAt;
   final DateTime? deletedAt;
@@ -29,7 +33,9 @@ class HabitEntity {
     String? categoryId,
     List<int>? selectedWeekdays,
     int? reminderMinutes,
+    int? reminderIntervalMinutes,
     int? durationMinutes,
+    int? timesPerDay,
     bool? isActive,
     DateTime? createdAt,
     DateTime? deletedAt,
@@ -41,7 +47,10 @@ class HabitEntity {
       categoryId: categoryId ?? this.categoryId,
       selectedWeekdays: selectedWeekdays ?? this.selectedWeekdays,
       reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+      reminderIntervalMinutes:
+          reminderIntervalMinutes ?? this.reminderIntervalMinutes,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      timesPerDay: timesPerDay ?? this.timesPerDay,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,

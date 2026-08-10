@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_components.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../providers/settings_providers.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -12,6 +13,7 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final settings = ref.watch(settingsControllerProvider);
     final theme = Theme.of(context);
     final controller = ref.read(settingsControllerProvider.notifier);
@@ -20,10 +22,10 @@ class SettingsPage extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
       children: [
-        Text('Ajustes', style: theme.textTheme.headlineMedium),
+        Text(l10n.settingsTitle, style: theme.textTheme.headlineMedium),
         const SizedBox(height: 24),
-        const Text(
-          'NOTIFICACIONES',
+        Text(
+          l10n.settingsNotificationsHeader,
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
@@ -35,8 +37,8 @@ class SettingsPage extends ConsumerWidget {
         _sectionCard([
           _settingTile(
             icon: Icons.notifications_outlined,
-            title: 'Notificaciones',
-            subtitle: 'Recordatorios de hábitos y sesiones',
+            title: l10n.settingsNotificationsLabel,
+            subtitle: l10n.settingsNotificationsSubtitle,
             trailing: Switch(
               value: settings.notificationsEnabled,
               onChanged: (value) async {
@@ -52,8 +54,8 @@ class SettingsPage extends ConsumerWidget {
           ),
         ]),
         const SizedBox(height: 24),
-        const Text(
-          'APP',
+        Text(
+          l10n.settingsAppHeader,
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
@@ -65,13 +67,13 @@ class SettingsPage extends ConsumerWidget {
         _sectionCard([
           _settingTile(
             icon: Icons.info_outline,
-            title: 'Version',
+            title: l10n.settingsVersionLabel,
             subtitle: AppConstants.appVersion,
           ),
         ]),
         const SizedBox(height: 24),
-        const Text(
-          'PREMIUM',
+        Text(
+          l10n.settingsPremiumHeader,
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
@@ -80,13 +82,13 @@ class SettingsPage extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 10),
-        _premiumCard(context, settings, controller, priceLabel),
+        _premiumCard(context, l10n, settings, controller, priceLabel),
         const SizedBox(height: 10),
         _sectionCard([
           _settingTile(
             icon: Icons.restore_outlined,
-            title: 'Restaurar compras',
-            subtitle: 'Recupera tu compra premium en este dispositivo',
+            title: l10n.settingsRestoreLabel,
+            subtitle: l10n.settingsRestoreSubtitle,
             onTap: () async {
               final messenger = ScaffoldMessenger.of(context);
               await ref
@@ -94,8 +96,8 @@ class SettingsPage extends ConsumerWidget {
                   .restorePurchases();
               if (context.mounted) {
                 messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text('Compra restaurada correctamente.'),
+                  SnackBar(
+                    content: Text(l10n.settingsRestoredSnackbar),
                   ),
                 );
               }
@@ -104,20 +106,20 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 4),
           _settingTile(
             icon: Icons.privacy_tip_outlined,
-            title: 'Política de privacidad',
-            subtitle: 'Consulta cómo manejamos tus datos',
+            title: l10n.settingsPrivacyLabel,
+            subtitle: l10n.settingsPrivacySubtitle,
             onTap: () {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Política de privacidad'),
+                  title: Text(l10n.settingsPrivacyDialogTitle),
                   content: SingleChildScrollView(
-                    child: const Text(AppConstants.privacyPolicyText),
+                    child: Text(l10n.settingsPrivacyContent),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cerrar'),
+                      child: Text(l10n.close),
                     ),
                   ],
                 ),
@@ -166,8 +168,8 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _premiumCard(BuildContext context, SettingsState settings,
-      SettingsController controller, String? priceLabel) {
+  Widget _premiumCard(BuildContext context, AppLocalizations l10n,
+      SettingsState settings, SettingsController controller, String? priceLabel) {
     if (settings.adsRemoved) {
       return GlassCard(
         child: Row(
@@ -187,13 +189,13 @@ class SettingsPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Anuncios removidos',
+                  Text(l10n.settingsPremiumOwnedTitle,
                       style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  const Text('Gracias por tu compra.',
+                  Text(l10n.settingsPremiumOwnedSubtitle,
                       style: TextStyle(
                           color: AppColors.textTertiary, fontSize: 13)),
                 ],
@@ -237,13 +239,13 @@ class SettingsPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Remover anuncios',
+                    Text(l10n.settingsPremiumBuyTitle,
                         style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    const Text('Compra única. Sin suscripciones.',
+                    Text(l10n.settingsPremiumBuySubtitle,
                         style: TextStyle(
                             color: AppColors.textTertiary, fontSize: 13)),
                   ],
@@ -255,8 +257,8 @@ class SettingsPage extends ConsumerWidget {
                   final started = await controller.buyPremium();
                   if (!started && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Premium no disponible sin Google Play.'),
+                      SnackBar(
+                        content: Text(l10n.settingsPremiumNotAvailable),
                       ),
                     );
                   }
@@ -268,7 +270,7 @@ class SettingsPage extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: Text(priceLabel ?? 'Comprar'),
+                child: Text(priceLabel ?? l10n.buy),
               ),
             ],
             ),

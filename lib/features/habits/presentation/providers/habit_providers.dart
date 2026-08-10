@@ -61,7 +61,9 @@ class HabitActions {
     required List<int> selectedWeekdays,
     required bool isActive,
     int? reminderMinutes,
+    int? reminderIntervalMinutes,
     int? durationMinutes,
+    int timesPerDay = 1,
   }) async {
     final normalizedName = name.trim();
     final now = DateTime.now();
@@ -75,7 +77,9 @@ class HabitActions {
       categoryId: categoryId,
       selectedWeekdays: List<int>.from(selectedWeekdays)..sort(),
       reminderMinutes: reminderMinutes,
+      reminderIntervalMinutes: reminderIntervalMinutes,
       durationMinutes: durationMinutes,
+      timesPerDay: timesPerDay < 1 ? 1 : timesPerDay,
       isActive: isActive,
       createdAt: existingHabit?.createdAt ?? now,
       deactivatedAt: reactivated ? null : deactivatedAt,
@@ -91,6 +95,8 @@ class HabitActions {
         habitId: habit.id,
         name: habit.name,
         reminderMinutes: habit.reminderMinutes!,
+        reminderIntervalMinutes: habit.reminderIntervalMinutes,
+        timesPerDay: habit.timesPerDay,
         selectedWeekdays: habit.selectedWeekdays,
       );
     }
@@ -108,23 +114,45 @@ class HabitActions {
     required DateTime date,
     required bool isCompleted,
   }) async {
+    final target = isCompleted ? habit.timesPerDay : 0;
+    await setHabitCompletionCount(
+      habit: habit,
+      date: date,
+      completedCount: target,
+    );
+  }
+
+  Future<void> setHabitCompletionCount({
+    required HabitEntity habit,
+    required DateTime date,
+    required int completedCount,
+  }) async {
     final currentLog = await _habitLogRepository.findByHabitAndDate(habit.id, date);
     final normalizedDate = HabioDateUtils.startOfDay(date);
+    final timesPerDay = habit.timesPerDay < 1 ? 1 : habit.timesPerDay;
+    final count = completedCount.clamp(0, timesPerDay);
 
-    if (!isCompleted) {
+    if (count <= 0) {
       if (currentLog != null) {
         await _habitLogRepository.delete(currentLog.id);
       }
       return;
     }
 
+    final isFullyCompleted = count >= timesPerDay;
     final log = HabitLogEntity(
       id: currentLog?.id ?? IdGenerator.next(),
       habitId: habit.id,
       date: normalizedDate,
-      isCompleted: true,
-      completedAt: DateTime.now(),
+      isCompleted: isFullyCompleted,
+      completedAt:
+          currentLog?.isCompleted == true || isFullyCompleted
+              ? (currentLog?.completedAt ?? DateTime.now())
+              : null,
       habitName: habit.name,
+      durationMinutes: habit.durationMinutes,
+      completedCount: count,
+      timesPerDay: timesPerDay,
     );
 
     await _habitLogRepository.save(log);

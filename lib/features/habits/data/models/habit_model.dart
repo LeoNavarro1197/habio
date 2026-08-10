@@ -10,7 +10,9 @@ class HabitModel extends HiveObject {
     required this.isActive,
     required this.createdAt,
     this.reminderMinutes,
+    this.reminderIntervalMinutes,
     this.durationMinutes,
+    this.timesPerDay = 1,
     this.deletedAt,
     this.deactivatedAt,
   });
@@ -25,7 +27,11 @@ class HabitModel extends HiveObject {
 
   final int? reminderMinutes;
 
+  final int? reminderIntervalMinutes;
+
   final int? durationMinutes;
+
+  final int timesPerDay;
 
   final bool isActive;
 
@@ -42,7 +48,9 @@ class HabitModel extends HiveObject {
       categoryId: entity.categoryId,
       selectedWeekdays: List<int>.from(entity.selectedWeekdays),
       reminderMinutes: entity.reminderMinutes,
+      reminderIntervalMinutes: entity.reminderIntervalMinutes,
       durationMinutes: entity.durationMinutes,
+      timesPerDay: entity.timesPerDay,
       isActive: entity.isActive,
       createdAt: entity.createdAt,
       deletedAt: entity.deletedAt,
@@ -57,7 +65,9 @@ class HabitModel extends HiveObject {
       categoryId: categoryId,
       selectedWeekdays: List<int>.from(selectedWeekdays),
       reminderMinutes: reminderMinutes,
+      reminderIntervalMinutes: reminderIntervalMinutes,
       durationMinutes: durationMinutes,
+      timesPerDay: timesPerDay,
       isActive: isActive,
       createdAt: createdAt,
       deletedAt: deletedAt,
@@ -89,13 +99,15 @@ class HabitModelAdapter extends TypeAdapter<HabitModel> {
       createdAt: fields[7] as DateTime,
       deletedAt: fields[8] as DateTime?,
       deactivatedAt: fields[9] as DateTime?,
+      timesPerDay: fields[10] as int? ?? 1,
+      reminderIntervalMinutes: fields[11] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -115,6 +127,10 @@ class HabitModelAdapter extends TypeAdapter<HabitModel> {
       ..writeByte(8)
       ..write(obj.deletedAt)
       ..writeByte(9)
-      ..write(obj.deactivatedAt);
+      ..write(obj.deactivatedAt)
+      ..writeByte(10)
+      ..write(obj.timesPerDay)
+      ..writeByte(11)
+      ..write(obj.reminderIntervalMinutes);
   }
 }

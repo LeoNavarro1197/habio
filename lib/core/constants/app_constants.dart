@@ -2,7 +2,8 @@ class AppConstants {
   const AppConstants._();
 
   static const appName = 'Habio';
-  static const appVersion = '0.1.0';
+  static const appVersion = '1.0.0';
+  static const onboardingRoute = '/onboarding';
   static const todayRoute = '/today';
   static const categoriesRoute = '/categories';
   static const historyRoute = '/history';

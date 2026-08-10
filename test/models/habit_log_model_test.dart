@@ -14,6 +14,8 @@ void main() {
       date: today,
       isCompleted: true,
       completedAt: today,
+      completedCount: 8,
+      timesPerDay: 8,
     );
 
     test('fromEntity creates correct model', () {
@@ -21,6 +23,8 @@ void main() {
       expect(model.id, 'log1');
       expect(model.habitId, 'h1');
       expect(model.isCompleted, isTrue);
+      expect(model.completedCount, 8);
+      expect(model.timesPerDay, 8);
     });
 
     test('toEntity recreates original entity', () {
@@ -29,6 +33,8 @@ void main() {
       expect(result.id, entity.id);
       expect(result.habitId, entity.habitId);
       expect(result.isCompleted, entity.isCompleted);
+      expect(result.completedCount, entity.completedCount);
+      expect(result.timesPerDay, entity.timesPerDay);
     });
 
     group('Hive adapter', () {
@@ -50,6 +56,8 @@ void main() {
         expect(result.id, 'log1');
         expect(result.habitId, 'h1');
         expect(result.isCompleted, isTrue);
+        expect(result.completedCount, 8);
+        expect(result.timesPerDay, 8);
 
         await box.close();
       });

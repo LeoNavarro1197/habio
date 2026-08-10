@@ -13,6 +13,8 @@ class BannerAdWidget extends StatefulWidget {
 class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
+  int _retryCount = 0;
+  static const _maxRetries = 5;
 
   @override
   void initState() {
@@ -21,8 +23,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   }
 
   void _loadAd() {
-    final adsService = AdsService();
-    final adUnitId = adsService.bannerAdUnitId;
+    final adUnitId = AdsServiceHolder.instance.bannerAdUnitId;
 
     _bannerAd = BannerAd(
       adUnitId: adUnitId,
@@ -30,10 +31,21 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (_) {
+          if (!mounted) return;
           setState(() => _isLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
+          if (!mounted) return;
+          _bannerAd = null;
+          _isLoaded = false;
+          if (_retryCount < _maxRetries) {
+            _retryCount++;
+            Future.delayed(
+              Duration(seconds: _retryCount * 2),
+              _loadAd,
+            );
+          }
         },
       ),
     );

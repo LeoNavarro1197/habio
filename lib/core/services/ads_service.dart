@@ -10,16 +10,14 @@ class AdsServiceHolder {
 class AdsService {
   bool _initialized = false;
 
-  // Production: ca-app-pub-3074046693159644/7012867576
-  static const String _testBannerAdUnitId =
-      'ca-app-pub-3940256099942544/6300978111';
+  static const String _bannerAdUnitId =
+      'ca-app-pub-3074046693159644/7012867576';
 
-  // Production: ca-app-pub-3074046693159644/3788680697
-  static const String _testInterstitialAdUnitId =
-      'ca-app-pub-3940256099942544/1033173712';
+  static const String _interstitialAdUnitId =
+      'ca-app-pub-3074046693159644/3788680697';
 
-  String get bannerAdUnitId => _testBannerAdUnitId;
-  String get interstitialAdUnitId => _testInterstitialAdUnitId;
+  String get bannerAdUnitId => _bannerAdUnitId;
+  String get interstitialAdUnitId => _interstitialAdUnitId;
 
   Future<void> initialize() async {
     if (_initialized) return;

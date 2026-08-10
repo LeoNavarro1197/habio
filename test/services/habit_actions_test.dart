@@ -74,6 +74,7 @@ class _MockHabitLogRepository implements HabitLogRepository {
 
   @override
   Future<void> save(HabitLogEntity log) async {
+    _logs.removeWhere((l) => l.id == log.id);
     _logs.add(log);
   }
 
@@ -140,6 +141,32 @@ void main() {
 
         final habits = await mockHabitRepo.getAll();
         expect(habits[0].selectedWeekdays, [1, 3, 5]);
+      });
+
+      test('persists timesPerDay', () async {
+        await actions.saveHabit(
+          name: 'Tomar agua',
+          categoryId: 'health',
+          selectedWeekdays: [1],
+          isActive: true,
+          timesPerDay: 8,
+        );
+
+        final habits = await mockHabitRepo.getAll();
+        expect(habits[0].timesPerDay, 8);
+      });
+
+      test('normalizes timesPerDay below 1 to 1', () async {
+        await actions.saveHabit(
+          name: 'Test',
+          categoryId: 'cat',
+          selectedWeekdays: [1],
+          isActive: true,
+          timesPerDay: 0,
+        );
+
+        final habits = await mockHabitRepo.getAll();
+        expect(habits[0].timesPerDay, 1);
       });
 
       test('updates existing habit preserving createdAt', () async {
@@ -228,6 +255,79 @@ void main() {
       test('unchecking when no log exists does nothing', () async {
         await actions.setHabitCompletion(
           habit: habit, date: date, isCompleted: false,
+        );
+
+        final logs = await mockLogRepo.getLogsForRange(date, date);
+        expect(logs, isEmpty);
+      });
+    });
+
+    group('setHabitCompletionCount', () {
+      final habit = HabitEntity(
+        id: 'h2', name: 'Tomar agua', categoryId: 'cat',
+        selectedWeekdays: [1], isActive: true, createdAt: DateTime.now(),
+        timesPerDay: 8,
+      );
+      final date = DateTime(2026, 7, 6);
+
+      test('creates a partial log with count', () async {
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 3,
+        );
+
+        final logs = await mockLogRepo.getLogsForRange(date, date);
+        expect(logs.length, 1);
+        expect(logs[0].habitId, 'h2');
+        expect(logs[0].completedCount, 3);
+        expect(logs[0].timesPerDay, 8);
+        expect(logs[0].isCompleted, isFalse);
+        expect(logs[0].isFullyCompleted, isFalse);
+        expect(logs[0].completedAt, isNull);
+      });
+
+      test('increments count on an existing log', () async {
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 3,
+        );
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 5,
+        );
+
+        final logs = await mockLogRepo.getLogsForRange(date, date);
+        expect(logs.length, 1);
+        expect(logs[0].completedCount, 5);
+        expect(logs[0].isCompleted, isFalse);
+      });
+
+      test('marks fully completed when count reaches timesPerDay', () async {
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 8,
+        );
+
+        final logs = await mockLogRepo.getLogsForRange(date, date);
+        expect(logs.length, 1);
+        expect(logs[0].completedCount, 8);
+        expect(logs[0].isCompleted, isTrue);
+        expect(logs[0].isFullyCompleted, isTrue);
+        expect(logs[0].completedAt, isNotNull);
+      });
+
+      test('clamps count above timesPerDay', () async {
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 99,
+        );
+
+        final logs = await mockLogRepo.getLogsForRange(date, date);
+        expect(logs[0].completedCount, 8);
+        expect(logs[0].isCompleted, isTrue);
+      });
+
+      test('deletes the log when count is zero', () async {
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 4,
+        );
+        await actions.setHabitCompletionCount(
+          habit: habit, date: date, completedCount: 0,
         );
 
         final logs = await mockLogRepo.getLogsForRange(date, date);

@@ -51,7 +51,18 @@ class TimerController extends StateNotifier<TimerSessionState> {
 
     state = state.copyWith(
       durationMinutes: minutes,
+      totalSeconds: minutes * 60,
       remainingSeconds: minutes * 60,
+      status: TimerStatus.idle,
+    );
+  }
+
+  void setCustomDuration(int totalSeconds) {
+    if (!state.canEditDuration) return;
+    state = state.copyWith(
+      durationMinutes: (totalSeconds / 60).ceil(),
+      totalSeconds: totalSeconds,
+      remainingSeconds: totalSeconds,
       status: TimerStatus.idle,
     );
   }

@@ -10,6 +10,9 @@ class HabitLogModel extends HiveObject {
     required this.isCompleted,
     this.completedAt,
     this.habitName,
+    this.durationMinutes,
+    this.completedCount = 0,
+    this.timesPerDay = 1,
   });
 
   final String id;
@@ -24,6 +27,12 @@ class HabitLogModel extends HiveObject {
 
   final String? habitName;
 
+  final int? durationMinutes;
+
+  final int completedCount;
+
+  final int timesPerDay;
+
   factory HabitLogModel.fromEntity(HabitLogEntity entity) {
     return HabitLogModel(
       id: entity.id,
@@ -32,6 +41,9 @@ class HabitLogModel extends HiveObject {
       isCompleted: entity.isCompleted,
       completedAt: entity.completedAt,
       habitName: entity.habitName,
+      durationMinutes: entity.durationMinutes,
+      completedCount: entity.completedCount,
+      timesPerDay: entity.timesPerDay,
     );
   }
 
@@ -43,6 +55,9 @@ class HabitLogModel extends HiveObject {
       isCompleted: isCompleted,
       completedAt: completedAt,
       habitName: habitName,
+      durationMinutes: durationMinutes,
+      completedCount: completedCount,
+      timesPerDay: timesPerDay,
     );
   }
 }
@@ -66,13 +81,16 @@ class HabitLogModelAdapter extends TypeAdapter<HabitLogModel> {
       isCompleted: fields[3] as bool,
       completedAt: fields[4] as DateTime?,
       habitName: fields[5] as String?,
+      durationMinutes: fields[6] as int?,
+      completedCount: fields[7] as int? ?? 0,
+      timesPerDay: fields[8] as int? ?? 1,
     );
   }
 
   @override
   void write(BinaryWriter writer, HabitLogModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -84,6 +102,12 @@ class HabitLogModelAdapter extends TypeAdapter<HabitLogModel> {
       ..writeByte(4)
       ..write(obj.completedAt)
       ..writeByte(5)
-      ..write(obj.habitName);
+      ..write(obj.habitName)
+      ..writeByte(6)
+      ..write(obj.durationMinutes)
+      ..writeByte(7)
+      ..write(obj.completedCount)
+      ..writeByte(8)
+      ..write(obj.timesPerDay);
   }
 }

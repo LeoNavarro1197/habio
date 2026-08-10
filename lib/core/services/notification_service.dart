@@ -20,6 +20,8 @@ class NotificationService {
   static const _reminderChannelName = 'Recordatorios';
   static const _reminderIdOffset = 2000;
   static const _systemIdStep = 1000;
+  static const _instanceIdStep = 100;
+  static const _maxInstances = 50;
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -145,6 +147,8 @@ class NotificationService {
     required String habitId,
     required String name,
     required int reminderMinutes,
+    int? reminderIntervalMinutes,
+    int timesPerDay = 1,
     required List<int> selectedWeekdays,
   }) {
     if (!_enabled) {
@@ -154,19 +158,38 @@ class NotificationService {
     cancelHabitReminder(habitId);
 
     final id = _reminderId(habitId);
-    final now = DateTime.now();
-    final hour = reminderMinutes ~/ 60;
-    final minute = reminderMinutes % 60;
+    final count = timesPerDay < 1 ? 1 : timesPerDay;
+    final interval = reminderIntervalMinutes ?? 0;
 
-    if (hour >= 24) {
-      return;
+    for (var instance = 0; instance < count; instance++) {
+      final instanceMinutes = reminderMinutes + instance * interval;
+      if (instanceMinutes >= 24 * 60) {
+        break;
+      }
+      _scheduleSingleReminder(
+        id: id + instance * _instanceIdStep,
+        name: name,
+        hour: instanceMinutes ~/ 60,
+        minute: instanceMinutes % 60,
+        weekdays: selectedWeekdays,
+      );
     }
+  }
+
+  void _scheduleSingleReminder({
+    required int id,
+    required String name,
+    required int hour,
+    required int minute,
+    required List<int> weekdays,
+  }) {
+    final now = DateTime.now();
 
     final nextValid = _nextValidDate(
       from: now,
       hour: hour,
       minute: minute,
-      weekdays: selectedWeekdays,
+      weekdays: weekdays,
     );
     if (nextValid == null) {
       return;
@@ -188,7 +211,7 @@ class NotificationService {
       name: name,
       hour: hour,
       minute: minute,
-      weekdays: selectedWeekdays,
+      weekdays: weekdays,
     ));
   }
 
@@ -287,14 +310,17 @@ class NotificationService {
 
   void cancelHabitReminder(String habitId) {
     final id = _reminderId(habitId);
-    final timer = _activeTimers.remove(id);
-    timer?.cancel();
-    for (int day = 0; day < 7; day++) {
-      final systemId = id + day * _systemIdStep;
-      try {
-        _plugin.cancel(systemId);
-      } catch (_) {}
-      unawaited(NativeAlarmService.cancel(systemId));
+    for (var instance = 0; instance < _maxInstances; instance++) {
+      final instanceId = id + instance * _instanceIdStep;
+      final timer = _activeTimers.remove(instanceId);
+      timer?.cancel();
+      for (int day = 0; day < 7; day++) {
+        final systemId = instanceId + day * _systemIdStep;
+        try {
+          _plugin.cancel(systemId);
+        } catch (_) {}
+        unawaited(NativeAlarmService.cancel(systemId));
+      }
     }
   }
 

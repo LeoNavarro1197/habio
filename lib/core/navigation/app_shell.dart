@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/habits/presentation/pages/habit_form_sheet.dart';
 import '../../features/settings/presentation/providers/settings_providers.dart';
+import '../../l10n/app_localizations.dart';
 import '../services/ads_service.dart';
+import '../services/form_state_provider.dart';
+import '../services/sound_provider.dart';
 import '../theme/app_colors.dart';
 
 class AppShell extends ConsumerStatefulWidget {
@@ -111,16 +114,19 @@ class _AppShellState extends ConsumerState<AppShell>
           ),
         ),
       ),
-      floatingActionButton: currentIndex == 0
+      floatingActionButton: currentIndex == 0 && !ref.watch(isFormOpenProvider)
           ? ScaleTransition(
               scale: CurvedAnimation(
                 parent: _fabController,
                 curve: Curves.easeOutBack,
               ),
               child: FloatingActionButton.extended(
-                onPressed: () => showHabitFormSheet(context),
+                onPressed: () {
+                  ref.read(soundServiceProvider).playClick();
+                  showHabitFormSheet(context);
+                },
                 icon: const Icon(Icons.add, size: 20),
-                label: const Text('Nuevo hábito'),
+                label: Text(AppLocalizations.of(context)!.shellFabNewHabit),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -132,11 +138,12 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   Widget _buildNavBar(int currentIndex) {
-    const tabs = [
-      (icon: Icons.today_rounded, label: 'Hoy'),
-      (icon: Icons.query_stats_rounded, label: 'Historial'),
-      (icon: Icons.timer_outlined, label: 'Temporizador'),
-      (icon: Icons.settings_rounded, label: 'Ajustes'),
+    final l10n = AppLocalizations.of(context)!;
+    final tabs = [
+      (icon: Icons.today_rounded, label: l10n.shellTabToday),
+      (icon: Icons.query_stats_rounded, label: l10n.shellTabHistory),
+      (icon: Icons.timer_outlined, label: l10n.shellTabTimer),
+      (icon: Icons.settings_rounded, label: l10n.shellTabSettings),
     ];
 
     return Container(

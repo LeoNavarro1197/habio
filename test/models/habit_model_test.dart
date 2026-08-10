@@ -17,6 +17,8 @@ void main() {
       createdAt: now,
       reminderMinutes: 420,
       durationMinutes: 30,
+      timesPerDay: 8,
+      reminderIntervalMinutes: 120,
     );
 
     test('fromEntity creates correct model', () {
@@ -25,6 +27,8 @@ void main() {
       expect(model.name, 'Correr');
       expect(model.selectedWeekdays, [1, 3, 5]);
       expect(model.reminderMinutes, 420);
+      expect(model.timesPerDay, 8);
+      expect(model.reminderIntervalMinutes, 120);
     });
 
     test('toEntity recreates original entity', () {
@@ -36,6 +40,8 @@ void main() {
       expect(result.reminderMinutes, entity.reminderMinutes);
       expect(result.durationMinutes, entity.durationMinutes);
       expect(result.isActive, entity.isActive);
+      expect(result.timesPerDay, entity.timesPerDay);
+      expect(result.reminderIntervalMinutes, entity.reminderIntervalMinutes);
     });
 
     test('selectedWeekdays list is independent copy', () {
@@ -67,6 +73,8 @@ void main() {
         expect(result.reminderMinutes, 420);
         expect(result.durationMinutes, 30);
         expect(result.isActive, isTrue);
+        expect(result.timesPerDay, 8);
+        expect(result.reminderIntervalMinutes, 120);
 
         await box.close();
       });

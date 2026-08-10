@@ -37,5 +37,24 @@ void main() {
       expect(copy.isActive, false);
       expect(copy.categoryId, 'study');
     });
+
+    test('timesPerDay defaults to 1', () {
+      expect(habit.timesPerDay, 1);
+    });
+
+    test('copyWith overrides timesPerDay', () {
+      final copy = habit.copyWith(timesPerDay: 8);
+      expect(copy.timesPerDay, 8);
+      expect(copy.timesPerDay, isNot(habit.timesPerDay));
+    });
+
+    test('reminderIntervalMinutes defaults to null', () {
+      expect(habit.reminderIntervalMinutes, isNull);
+    });
+
+    test('copyWith overrides reminderIntervalMinutes', () {
+      final copy = habit.copyWith(reminderIntervalMinutes: 120);
+      expect(copy.reminderIntervalMinutes, 120);
+    });
   });
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/form_state_provider.dart';
+import '../../../../core/services/sound_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_components.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../categories/domain/entities/category_entity.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../domain/entities/habit_entity.dart';
@@ -12,13 +15,17 @@ Future<void> showHabitFormSheet(
   BuildContext context, {
   HabitEntity? initialHabit,
 }) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  container.read(isFormOpenProvider.notifier).state = true;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (context) => HabitFormSheet(initialHabit: initialHabit),
-  );
+  ).whenComplete(() {
+    container.read(isFormOpenProvider.notifier).state = false;
+  });
 }
 
 class HabitFormSheet extends ConsumerStatefulWidget {
@@ -35,6 +42,8 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
   late List<int> _selectedWeekdays;
   late int? _reminderMinutes;
   late int? _durationMinutes;
+  late int _timesPerDay;
+  late int _reminderIntervalHours;
   late bool _isActive;
   String? _selectedCategoryId;
   _FrequencyPreset _frequencyPreset = _FrequencyPreset.everyDay;
@@ -50,6 +59,9 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
     );
     _reminderMinutes = habit?.reminderMinutes;
     _durationMinutes = habit?.durationMinutes ?? 25;
+    _timesPerDay = habit?.timesPerDay ?? 1;
+    _reminderIntervalHours =
+        (habit?.reminderIntervalMinutes ?? 120) ~/ 60;
     _isActive = habit?.isActive ?? true;
     _selectedCategoryId = habit?.categoryId;
     _frequencyPreset = _FrequencyPreset.fromWeekdays(_selectedWeekdays);
@@ -61,8 +73,21 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
     super.dispose();
   }
 
+  static const _presetDurationItems = [5, 10, 15, 20, 25, 30, 45, 60];
+
+  Future<void> _showCustomDuration() async {
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (ctx) => const _DurationPickerDialog(),
+    );
+    if (minutes != null && minutes > 0) {
+      setState(() => _durationMinutes = minutes);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final categoriesAsync = ref.watch(categoriesProvider);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -89,8 +114,8 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                       Expanded(
                         child: Text(
                           widget.initialHabit == null
-                              ? 'Nuevo hábito'
-                              : 'Editar hábito',
+                              ? l10n.habitFormNewTitle
+                              : l10n.habitFormEditTitle,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 22,
@@ -107,8 +132,8 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Configura nombre, frecuencia y recordatorio.',
+                  Text(
+                    l10n.habitFormSubtitle,
                     style:
                         TextStyle(color: AppColors.textTertiary, fontSize: 14),
                   ),
@@ -116,9 +141,9 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                   TextField(
                     controller: _nameController,
                     textInputAction: TextInputAction.done,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del hábito',
-                      hintText: 'Ej. Estudiar inglés',
+                    decoration: InputDecoration(
+                      labelText: l10n.habitFormNameLabel,
+                      hintText: l10n.habitFormNameHint,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -128,32 +153,34 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                         .map(
                           (category) => DropdownMenuItem<String>(
                             value: category.id,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  IconData(category.iconCodePoint,
-                                      fontFamily: 'MaterialIcons'),
-                                  color: AppColors.categoryColor(category.id),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(category.name,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    IconData(category.iconCodePoint,
+                                        fontFamily: 'MaterialIcons'),
+                                    color: AppColors.categoryColor(category.id),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    _localizedCategoryName(l10n, category),
                                     style: const TextStyle(
-                                        color: AppColors.textPrimary)),
-                              ],
-                            ),
+                                        color: AppColors.textPrimary),
+                                  ),
+                                ],
+                              ),
                           ),
                         )
                         .toList(),
                     onChanged: (value) {
                       setState(() => _selectedCategoryId = value);
                     },
-                    decoration: const InputDecoration(labelText: 'Categoría'),
+                    decoration: InputDecoration(labelText: l10n.habitFormCategoryLabel),
                     dropdownColor: AppColors.surface,
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'FRECUENCIA',
+                  Text(
+                    l10n.habitFormFrequencyHeader,
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
@@ -168,7 +195,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                     children: _FrequencyPreset.values.map((preset) {
                       final selected = _frequencyPreset == preset;
                       return ChoiceChip(
-                        label: Text(preset.label),
+                        label: Text(preset.label(l10n)),
                         selected: selected,
                         onSelected: (_) {
                           setState(() {
@@ -191,7 +218,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                         final day = index + 1;
                         final selected = _selectedWeekdays.contains(day);
                         return FilterChip(
-                          label: Text(_weekdayLabel(day)),
+                          label: Text(_weekdayLabel(l10n, day)),
                           selected: selected,
                           onSelected: (_) {
                             setState(() {
@@ -232,14 +259,14 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                                     color: AppColors.textTertiary,
                                     size: 20),
                                 const SizedBox(width: 12),
-                                const Expanded(
-                                  child: Text('Recordatorio',
+                                Expanded(
+                                  child: Text(l10n.habitFormReminderLabel,
                                       style: TextStyle(
                                           color: AppColors.textPrimary,
                                           fontSize: 15)),
                                 ),
-                                Text(
-                                  _formatReminderLabel(_reminderMinutes),
+                                  Text(
+                                    _formatReminderLabel(l10n, _reminderMinutes),
                                   style: const TextStyle(
                                     color: AppColors.textSecondary,
                                     fontSize: 14,
@@ -263,21 +290,145 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                           ),
                         ),
                         Container(height: 1, color: AppColors.divider),
-                        DropdownButtonFormField<int>(
-                          value: _durationMinutes,
-                          items: const [5, 10, 15, 20, 25, 30, 45, 60]
-                              .map(
-                                (minutes) => DropdownMenuItem<int>(
-                                  value: minutes,
-                                  child: Text('$minutes min'),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.repeat_rounded,
+                                  color: AppColors.textTertiary, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  l10n.habitFormTimesPerDayLabel,
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 15),
                                 ),
-                              )
-                              .toList(),
+                              ),
+                              IconButton(
+                                onPressed: _timesPerDay > 1
+                                    ? () => setState(() => _timesPerDay--)
+                                    : null,
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.remove_circle_outline_rounded,
+                                    color: AppColors.textSecondary, size: 22),
+                              ),
+                              SizedBox(
+                                width: 28,
+                                child: Text(
+                                  '$_timesPerDay',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: _timesPerDay < 50
+                                    ? () => setState(() => _timesPerDay++)
+                                    : null,
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(Icons.add_circle_outline_rounded,
+                                    color: AppColors.textSecondary, size: 22),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_timesPerDay > 1) ...[
+                          Container(height: 1, color: AppColors.divider),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.schedule_rounded,
+                                    color: AppColors.textTertiary, size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    l10n.habitFormIntervalLabel,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 15),
+                                  ),
+                                ),
+                                Text(
+                                  l10n.habitFormIntervalValue('$_reminderIntervalHours'),
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 14),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: _reminderIntervalHours > 1
+                                      ? () => setState(
+                                          () => _reminderIntervalHours--)
+                                      : null,
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(
+                                      Icons.remove_circle_outline_rounded,
+                                      color: AppColors.textSecondary,
+                                      size: 22),
+                                ),
+                                SizedBox(
+                                  width: 28,
+                                  child: Text(
+                                    '$_reminderIntervalHours',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: _reminderIntervalHours < 12
+                                      ? () => setState(
+                                          () => _reminderIntervalHours++)
+                                      : null,
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(
+                                      Icons.add_circle_outline_rounded,
+                                      color: AppColors.textSecondary,
+                                      size: 22),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        Container(height: 1, color: AppColors.divider),
+                        DropdownButtonFormField<int>(
+                          value: _presetDurationItems
+                                  .contains(_durationMinutes)
+                              ? _durationMinutes
+                              : -1,
+                          items: [
+                            ..._presetDurationItems.map(
+                              (minutes) => DropdownMenuItem<int>(
+                                value: minutes,
+                                child: Text('$minutes ${l10n.minUnit}'),
+                              ),
+                            ),
+                            DropdownMenuItem<int>(
+                              value: -1,
+                              child: Text(l10n.custom),
+                            ),
+                          ],
                           onChanged: (value) {
-                            setState(() => _durationMinutes = value);
+                            if (value == -1) {
+                              _showCustomDuration();
+                            } else {
+                              setState(() => _durationMinutes = value);
+                            }
                           },
-                          decoration: const InputDecoration(
-                            labelText: 'Duración estimada',
+                          decoration: InputDecoration(
+                            labelText: _durationMinutes != null &&
+                                    !_presetDurationItems
+                                        .contains(_durationMinutes)
+                                ? '${l10n.habitFormDurationLabel} ($_durationMinutes ${l10n.minUnit})'
+                                : l10n.habitFormDurationLabel,
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 14),
@@ -292,12 +443,12 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                           onChanged: (value) {
                             setState(() => _isActive = value);
                           },
-                          title: const Text('Hábito activo',
+                          title: Text(l10n.habitFormActiveLabel,
                               style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 15)),
-                          subtitle: const Text(
-                            'Si lo desactivas, el hábito se pausa y no cuenta en tu progreso.',
+                          subtitle: Text(
+                            l10n.habitFormActiveSubtitle,
                             style: TextStyle(
                                 color: AppColors.textTertiary, fontSize: 12),
                           ),
@@ -338,17 +489,17 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
                       ),
                       child: Text(
                         _isSaving
-                            ? 'Guardando...'
+                            ? l10n.habitFormSaving
                             : widget.initialHabit == null
-                                ? 'Guardar hábito'
-                                : 'Actualizar hábito',
+                                ? l10n.habitFormSaveNew
+                                : l10n.habitFormSaveEdit,
                       ),
                     ),
                   ),
                   if (categories.isEmpty) ...[
                     const SizedBox(height: 12),
-                    const Text(
-                      'No hay categorías disponibles.',
+                    Text(
+                      l10n.habitFormNoCategories,
                       style: TextStyle(
                           color: AppColors.textTertiary, fontSize: 13),
                     ),
@@ -359,7 +510,7 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
           },
           error: (error, _) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Text('Error: $error',
+            child: Text(l10n.habitFormError(error.toString()),
                 style: const TextStyle(color: AppColors.error)),
           ),
           loading: () => const Padding(
@@ -398,23 +549,26 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
   }
 
   Future<void> _save(List<CategoryEntity> categories) async {
+    final l10n = AppLocalizations.of(context)!;
     final selectedWeekdays = _frequencyPreset == _FrequencyPreset.custom
         ? _selectedWeekdays
         : _frequencyPreset.days;
 
     if (_nameController.text.trim().isEmpty) {
-      _showMessage('Escribe un nombre para el hábito.');
+      _showMessage(l10n.habitFormValidateName);
       return;
     }
     if (_selectedCategoryId == null ||
         categories.every((item) => item.id != _selectedCategoryId)) {
-      _showMessage('Selecciona una categoría válida.');
+      _showMessage(l10n.habitFormValidateCategory);
       return;
     }
     if (selectedWeekdays.isEmpty) {
-      _showMessage('Selecciona al menos un día.');
+      _showMessage(l10n.habitFormValidateDay);
       return;
     }
+
+    ref.read(soundServiceProvider).playClick();
 
     setState(() => _isSaving = true);
 
@@ -425,7 +579,10 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
             categoryId: _selectedCategoryId!,
             selectedWeekdays: selectedWeekdays,
             reminderMinutes: _reminderMinutes,
+            reminderIntervalMinutes:
+                _timesPerDay > 1 ? _reminderIntervalHours * 60 : null,
             durationMinutes: _durationMinutes,
+            timesPerDay: _timesPerDay,
             isActive: _isActive,
           );
       if (!mounted) return;
@@ -434,8 +591,8 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
         SnackBar(
           content: Text(
             widget.initialHabit == null
-                ? 'Hábito creado correctamente.'
-                : 'Hábito actualizado correctamente.',
+                ? l10n.habitFormCreatedSnackbar
+                : l10n.habitFormUpdatedSnackbar,
           ),
         ),
       );
@@ -449,29 +606,50 @@ class _HabitFormSheetState extends ConsumerState<HabitFormSheet> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _formatReminderLabel(int? minutes) {
-    if (minutes == null) return 'Sin recordatorio';
+  String _formatReminderLabel(AppLocalizations l10n, int? minutes) {
+    if (minutes == null) return l10n.habitFormNoReminder;
     final hour = (minutes ~/ 60).toString().padLeft(2, '0');
     final minute = (minutes % 60).toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 
-  String _weekdayLabel(int weekday) {
-    const labels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  String _localizedCategoryName(AppLocalizations l10n, CategoryEntity category) {
+    switch (category.id) {
+      case 'study':   return l10n.categoryStudy;
+      case 'work':    return l10n.categoryWork;
+      case 'health':  return l10n.categoryHealth;
+      case 'personal': return l10n.categoryPersonal;
+      default:        return category.name;
+    }
+  }
+
+  String _weekdayLabel(AppLocalizations l10n, int weekday) {
+    final labels = [
+      l10n.weekdayMon, l10n.weekdayTue, l10n.weekdayWed,
+      l10n.weekdayThu, l10n.weekdayFri, l10n.weekdaySat, l10n.weekdaySun,
+    ];
     return labels[weekday - 1];
   }
 }
 
 enum _FrequencyPreset {
-  everyDay('Todos los días', [1, 2, 3, 4, 5, 6, 7]),
-  weekdays('Días entre semana', [1, 2, 3, 4, 5]),
-  weekends('Fin de semana', [6, 7]),
-  custom('Personalizado', []);
+  everyDay([1, 2, 3, 4, 5, 6, 7]),
+  weekdays([1, 2, 3, 4, 5]),
+  weekends([6, 7]),
+  custom([]);
 
-  const _FrequencyPreset(this.label, this.days);
+  const _FrequencyPreset(this.days);
 
-  final String label;
   final List<int> days;
+
+  String label(AppLocalizations l10n) {
+    switch (this) {
+      case _FrequencyPreset.everyDay: return l10n.todayAllDays;
+      case _FrequencyPreset.weekdays: return l10n.habitFormWeekdays;
+      case _FrequencyPreset.weekends: return l10n.habitFormWeekend;
+      case _FrequencyPreset.custom:   return l10n.custom;
+    }
+  }
 
   static _FrequencyPreset fromWeekdays(List<int> weekdays) {
     final normalized = List<int>.from(weekdays)..sort();
@@ -487,5 +665,69 @@ enum _FrequencyPreset {
       if (left[i] != right[i]) return false;
     }
     return true;
+  }
+}
+
+class _DurationPickerDialog extends StatefulWidget {
+  const _DurationPickerDialog();
+
+  @override
+  State<_DurationPickerDialog> createState() => _DurationPickerDialogState();
+}
+
+class _DurationPickerDialogState extends State<_DurationPickerDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final l10n = AppLocalizations.of(context)!;
+    final value = int.tryParse(_controller.text);
+    if (value == null || value < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.habitFormValidateNumber)),
+      );
+      return;
+    }
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text(l10n.habitFormCustomDurationTitle),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: l10n.habitFormMinutesLabel,
+          hintText: l10n.habitFormMinutesHint,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n.accept),
+        ),
+      ],
+    );
   }
 }

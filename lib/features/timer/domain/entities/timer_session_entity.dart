@@ -7,21 +7,21 @@ enum TimerStatus {
 
 class TimerSessionState {
   const TimerSessionState({
-    this.activityName = 'Sesión de enfoque',
+     this.activityName = '',
     this.durationMinutes = 25,
+    this.totalSeconds = 25 * 60,
     this.remainingSeconds = 25 * 60,
     this.status = TimerStatus.idle,
   });
 
   static const defaultDurationMinutes = 25;
-  static const durationPresets = [5, 15, 25, 45];
+  static const durationPresets = [5, 15, 25, 45, 60];
 
   final String activityName;
   final int durationMinutes;
+  final int totalSeconds;
   final int remainingSeconds;
   final TimerStatus status;
-
-  int get totalSeconds => durationMinutes * 60;
 
   double get progress {
     if (totalSeconds == 0) {
@@ -42,12 +42,14 @@ class TimerSessionState {
   TimerSessionState copyWith({
     String? activityName,
     int? durationMinutes,
+    int? totalSeconds,
     int? remainingSeconds,
     TimerStatus? status,
   }) {
     return TimerSessionState(
       activityName: activityName ?? this.activityName,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      totalSeconds: totalSeconds ?? this.totalSeconds,
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       status: status ?? this.status,
     );

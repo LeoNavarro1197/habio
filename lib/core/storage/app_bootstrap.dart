@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../services/ads_service.dart';
 import '../services/notification_service.dart';
+import '../services/sound_service.dart';
 import '../../features/categories/data/default_categories.dart';
 import '../../features/categories/data/models/category_model.dart';
 import '../../features/habits/data/models/habit_model.dart';
@@ -44,6 +45,8 @@ class AppBootstrap {
     } catch (err) {
       debugPrint('[Habio] Error inicializando AdMob: $err');
     }
+
+    SoundServiceHolder.instance;
   }
 
   static void rescheduleHabitReminders() {
@@ -72,6 +75,8 @@ class AppBootstrap {
           habitId: habit.id,
           name: habit.name,
           reminderMinutes: habit.reminderMinutes!,
+          reminderIntervalMinutes: habit.reminderIntervalMinutes,
+          timesPerDay: habit.timesPerDay,
           selectedWeekdays: habit.selectedWeekdays,
         );
       }
